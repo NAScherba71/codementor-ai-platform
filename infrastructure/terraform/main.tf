@@ -404,6 +404,8 @@ resource "google_cloud_run_v2_service" "ai_engine" {
           cpu    = "2"
           memory = "4Gi"
         }
+        # Add startup CPU boost for faster cold starts
+        startup_cpu_boost = true
       }
 
       env {
@@ -422,12 +424,28 @@ resource "google_cloud_run_v2_service" "ai_engine" {
         name  = "VERTEX_MODEL"
         value = "gemini-pro"
       }
+      # Model-specific configurations
+      env {
+        name  = "CLAUDE_MODEL"
+        value = "claude-sonnet-4.5"
+      }
+      env {
+        name  = "GPT_MODEL"
+        value = "gpt-5.2-codex"
+      }
+      env {
+        name  = "GEMINI_FLASH_MODEL"
+        value = "gemini-3-flash"
+      }
     }
 
     scaling {
       min_instance_count = 0
-      max_instance_count = 5
+      max_instance_count = 10
     }
+
+    # Optimize for cost: scale down quickly when idle
+    max_instance_request_concurrency = 80
 
     timeout = "300s"
   }

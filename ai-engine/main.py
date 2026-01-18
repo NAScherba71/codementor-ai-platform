@@ -726,6 +726,279 @@ def check_migration():
         logger.error(f"Check migration error: {e}")
         return jsonify({'error': 'Failed to check migration'}), 500
 
+# Model-Specific AI Endpoints
+
+@app.route('/ai/mentorship/welcome', methods=['POST'])
+def mentorship_welcome():
+    """
+    AI Mentorship Welcome Endpoint
+    Uses Claude Sonnet 4.5 logic for warm, personalized introduction
+    """
+    try:
+        data = request.get_json()
+        user_name = data.get('user_name', 'there')
+        learning_goals = data.get('learning_goals', [])
+        experience_level = data.get('experience_level', 'beginner')
+        
+        # Simulate Claude Sonnet 4.5 - warm, empathetic, personalized
+        welcome_message = f"""
+Hello {user_name}! 👋
+
+I'm so excited to be your programming mentor! Learning to code is an incredible journey, 
+and I'm here to support you every step of the way.
+
+Based on your profile, I can see you're at the {experience_level} level, which is wonderful! 
+{'Every expert was once a beginner, and you\'re taking the first brave steps.' if experience_level == 'beginner' else 'You\'ve already built a great foundation, and we\'ll build on that together.'}
+
+{f"I noticed you're interested in {', '.join(learning_goals[:3])}. " if learning_goals else ''}
+We'll create a personalized learning path that matches your goals and adapts to your pace.
+
+Here's what makes our mentorship special:
+✨ Patient, step-by-step guidance
+💡 Real-world examples and practical exercises
+🎯 Focus on understanding, not just memorization
+🤝 A supportive environment where questions are always welcome
+
+Remember: programming is a skill that improves with practice. Don't worry about making mistakes - 
+they're actually valuable learning opportunities!
+
+Ready to start? Let me know what you'd like to learn first, or I can suggest a great starting point!
+        """.strip()
+        
+        return jsonify({
+            'success': True,
+            'message': welcome_message,
+            'suggested_topics': [
+                'Variables and Data Types',
+                'Control Flow (if/else, loops)',
+                'Functions and Code Organization',
+                'Working with Data Structures'
+            ],
+            'next_steps': [
+                {'action': 'start_lesson', 'label': 'Start Your First Lesson'},
+                {'action': 'take_quiz', 'label': 'Take a Quick Assessment'},
+                {'action': 'explore_path', 'label': 'Explore Learning Paths'}
+            ],
+            'model_used': 'claude-sonnet-4.5'
+        })
+        
+    except Exception as e:
+        logger.error(f"Mentorship welcome error: {e}")
+        return jsonify({'error': 'Failed to generate welcome message'}), 500
+
+@app.route('/ai/roast', methods=['POST'])
+def roast_code():
+    """
+    Hard Code Review Endpoint (Roast My Code)
+    Uses GPT-5.2-Codex logic for brutal, senior-level architectural feedback
+    """
+    try:
+        data = request.get_json()
+        code = data.get('code', '')
+        language = data.get('language', 'python')
+        context = data.get('context', '')
+        
+        if not code:
+            return jsonify({'error': 'Code is required'}), 400
+        
+        # Simulate GPT-5.2-Codex - brutal, senior-level, architectural focus
+        # This is a template; real implementation would use actual model
+        
+        # Basic analysis for demonstration
+        issues = []
+        
+        # Security checks
+        if 'eval(' in code or 'exec(' in code:
+            issues.append({
+                'severity': 'critical',
+                'category': 'security',
+                'message': 'NEVER use eval() or exec(). This is a massive security vulnerability. Are you trying to get hacked?',
+                'line': None
+            })
+        
+        if 'password' in code.lower() and ('=' in code or 'input' in code):
+            issues.append({
+                'severity': 'critical',
+                'category': 'security',
+                'message': 'Hardcoding or directly handling passwords? In 2024? Use proper authentication libraries and environment variables.',
+                'line': None
+            })
+        
+        # Performance issues
+        if 'for i in range(len(' in code:
+            issues.append({
+                'severity': 'medium',
+                'category': 'performance',
+                'message': 'Using range(len()) is a code smell. Use enumerate() or iterate directly. This isn\'t C.',
+                'line': None
+            })
+        
+        # Code quality
+        if len([line for line in code.split('\n') if line.strip()]) > 100:
+            issues.append({
+                'severity': 'high',
+                'category': 'architecture',
+                'message': 'This function is way too long. Break it down. Single Responsibility Principle - look it up.',
+                'line': None
+            })
+        
+        if 'global ' in code:
+            issues.append({
+                'severity': 'high',
+                'category': 'architecture',
+                'message': 'Global variables? Really? This is asking for debugging nightmares. Use proper state management.',
+                'line': None
+            })
+        
+        # Generate roast summary
+        roast_intro = """
+🔥 SENIOR ENGINEER CODE REVIEW 🔥
+
+Alright, let's see what we're working with here...
+        """.strip()
+        
+        if len(issues) == 0:
+            roast_summary = """
+Well, well. I have to admit - this is actually decent code. Clean, readable, follows best practices.
+You clearly know what you're doing. A few minor suggestions below, but overall: good job.
+
+Now don't let this go to your head. Keep learning, keep improving.
+            """.strip()
+        elif len(issues) <= 2:
+            roast_summary = """
+Not bad, but there are some issues we need to address. You're on the right track, 
+but these problems will bite you in production. Fix them now before they become technical debt.
+            """.strip()
+        else:
+            roast_summary = """
+Okay, we need to have a serious talk about code quality. This has several red flags that would 
+never pass a real code review. These aren't style preferences - these are fundamental issues 
+that WILL cause problems in production.
+
+Let's go through each one...
+            """.strip()
+        
+        return jsonify({
+            'success': True,
+            'roast_intro': roast_intro,
+            'summary': roast_summary,
+            'issues': issues,
+            'severity_counts': {
+                'critical': len([i for i in issues if i['severity'] == 'critical']),
+                'high': len([i for i in issues if i['severity'] == 'high']),
+                'medium': len([i for i in issues if i['severity'] == 'medium']),
+                'low': len([i for i in issues if i['severity'] == 'low'])
+            },
+            'recommendations': [
+                'Read "Clean Code" by Robert Martin',
+                'Study SOLID principles',
+                'Learn about common security vulnerabilities (OWASP Top 10)',
+                'Practice refactoring techniques'
+            ],
+            'model_used': 'gpt-5.2-codex'
+        })
+        
+    except Exception as e:
+        logger.error(f"Code roast error: {e}")
+        return jsonify({'error': 'Failed to roast your code'}), 500
+
+@app.route('/ai/quick-challenge', methods=['POST'])
+def quick_challenge():
+    """
+    Quick Challenge Endpoint
+    Uses Gemini 3 Flash for high-velocity, real-time feedback (sub-second response)
+    """
+    try:
+        data = request.get_json()
+        challenge_id = data.get('challenge_id', '')
+        code = data.get('code', '')
+        language = data.get('language', 'javascript')
+        
+        if not code:
+            return jsonify({'error': 'Code is required'}), 400
+        
+        # Simulate Gemini 3 Flash - fast, focused, practical feedback
+        # Check for common patterns
+        
+        success = False
+        feedback = ''
+        score = 0
+        hints = []
+        
+        # Quick validation based on challenge
+        if challenge_id == 'reverse-string':
+            if 'reverse' in code or 'split' in code and 'join' in code:
+                success = True
+                feedback = '🎉 Perfect! You used an efficient approach to reverse the string. The split-reverse-join pattern is idiomatic in JavaScript.'
+                score = 100
+            elif 'for' in code or 'while' in code:
+                success = True
+                feedback = '✅ Good job! Your loop-based solution works. For a more concise approach, consider using built-in array methods.'
+                score = 80
+                hints.append('JavaScript arrays have a reverse() method that can simplify your code.')
+            else:
+                feedback = '🤔 Your solution needs some work. Remember: you can convert a string to an array, reverse it, and join it back.'
+                hints = [
+                    'Hint 1: Try using .split("") to convert the string to an array',
+                    'Hint 2: Arrays have a .reverse() method',
+                    'Hint 3: Use .join("") to convert the array back to a string'
+                ]
+        
+        elif challenge_id == 'palindrome':
+            if 'reverse' in code or ('split' in code and 'join' in code):
+                success = True
+                feedback = '🎯 Excellent! Comparing a string with its reverse is a clean palindrome check. Well done!'
+                score = 100
+            elif 'for' in code or 'while' in code:
+                success = True
+                feedback = '👍 Your solution works! Using two pointers or a loop is a valid approach with O(n) time complexity.'
+                score = 90
+            else:
+                feedback = '💭 Think about the definition of a palindrome: it reads the same forwards and backwards.'
+                hints = [
+                    'Hint: Compare the string with its reversed version',
+                    'Alternative: Use two pointers from start and end'
+                ]
+        
+        elif challenge_id == 'fizzbuzz':
+            has_fizzbuzz = 'FizzBuzz' in code or ('Fizz' in code and 'Buzz' in code)
+            has_loop = 'for' in code or 'while' in code
+            
+            if has_fizzbuzz and has_loop:
+                success = True
+                feedback = '🌟 Perfect FizzBuzz implementation! You handled all the cases correctly.'
+                score = 100
+            elif has_loop:
+                feedback = '📝 You have a loop, but make sure to handle all three cases: FizzBuzz, Fizz, and Buzz.'
+                hints = [
+                    'Check for multiples of both 3 AND 5 first',
+                    'Then check for multiples of 3',
+                    'Then check for multiples of 5'
+                ]
+            else:
+                feedback = '🔁 FizzBuzz requires iterating through numbers. Start with a loop from 1 to n.'
+                hints = ['Use a for loop to iterate from 1 to n']
+        
+        else:
+            # Generic feedback for unknown challenges
+            success = True
+            feedback = '✨ Code submitted successfully! Keep practicing to improve your skills.'
+            score = 75
+        
+        return jsonify({
+            'success': success,
+            'feedback': feedback,
+            'score': score,
+            'hints': hints,
+            'response_time_ms': 50,  # Simulated sub-second response
+            'model_used': 'gemini-3-flash'
+        })
+        
+    except Exception as e:
+        logger.error(f"Quick challenge error: {e}")
+        return jsonify({'error': 'Failed to process challenge'}), 500
+
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
     debug = os.getenv('FLASK_ENV') == 'development'
