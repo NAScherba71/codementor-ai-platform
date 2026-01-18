@@ -20,8 +20,9 @@ export function HelpModal({ show, onClose }: HelpModalProps) {
 
     if (show) {
       document.addEventListener('keydown', handleEscape);
-      return () => document.removeEventListener('keydown', handleEscape);
     }
+
+    return () => document.removeEventListener('keydown', handleEscape);
   }, [show, onClose]);
 
   return (
