@@ -2,6 +2,7 @@
 
 import CodeEditor from '@/components/CodeEditor'
 import HeroCodeDemo from '@/components/HeroCodeDemo'
+import { Navigation } from './components/landing/Navigation'
 import { motion } from 'framer-motion'
 import { AlertTriangle, ArrowRight, BookOpen, Brain, CheckCircle2, Code, Lightbulb, Target, Trophy, Users, Zap } from 'lucide-react'
 import Link from 'next/link'
@@ -9,6 +10,7 @@ import Link from 'next/link'
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-white">
+      <Navigation />
       {/* Hero Section */}
       <section className="relative overflow-hidden pt-16 pb-24 lg:pt-32 lg:pb-40">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(45rem_50rem_at_top,theme(colors.indigo.100),white)] opacity-20" />
