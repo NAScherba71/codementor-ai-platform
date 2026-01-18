@@ -4,6 +4,7 @@ import CodeEditor from '@/components/CodeEditor'
 import HeroCodeDemo from '@/components/HeroCodeDemo'
 import OnboardingTour from '@/components/OnboardingTour'
 import QuickStartPlayground from '@/components/QuickStartPlayground'
+import { Navigation } from './components/landing/Navigation'
 import { motion } from 'framer-motion'
 import { AlertTriangle, ArrowRight, BookOpen, Brain, CheckCircle2, Code, Lightbulb, Target, Trophy, Users, Zap } from 'lucide-react'
 import Link from 'next/link'
@@ -11,6 +12,7 @@ import Link from 'next/link'
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-white">
+      <Navigation />
       {/* Onboarding Tour */}
       <OnboardingTour />
 
