@@ -69,7 +69,16 @@ load_environment() {
     # Check if .env file exists
     if [ -f .env ]; then
         log_info "Loading .env file..."
-        export $(grep -v '^#' .env | xargs)
+        # Safely load .env file
+        while IFS='=' read -r key value; do
+            # Skip comments and empty lines
+            [[ $key =~ ^#.*$ || -z $key ]] && continue
+            # Remove leading/trailing whitespace
+            key=$(echo "$key" | xargs)
+            value=$(echo "$value" | xargs)
+            # Export the variable
+            export "$key=$value"
+        done < .env
     else
         log_warning ".env file not found. Using default values or environment variables."
     fi
@@ -188,7 +197,7 @@ show_deployment_info() {
     # Extract URLs from Terraform outputs
     if [ -f infrastructure/terraform/outputs.json ]; then
         echo ""
-        cat infrastructure/terraform/outputs.json | grep -E "(frontend|backend|ai_engine)_url" || true
+        grep -E "(frontend|backend|ai_engine)_url" infrastructure/terraform/outputs.json || true
         echo ""
     fi
     

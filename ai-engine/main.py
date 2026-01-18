@@ -927,7 +927,7 @@ def quick_challenge():
         
         # Quick validation based on challenge
         if challenge_id == 'reverse-string':
-            if 'reverse' in code or 'split' in code and 'join' in code:
+            if 'reverse' in code or ('split' in code and 'join' in code):
                 success = True
                 feedback = '🎉 Perfect! You used an efficient approach to reverse the string. The split-reverse-join pattern is idiomatic in JavaScript.'
                 score = 100
