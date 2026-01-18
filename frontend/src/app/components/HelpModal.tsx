@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Zap, Brain, Code, BookOpen, Target, Trophy } from 'lucide-react';
 import { Button } from './ui/button';
+import { useEffect } from 'react';
 
 interface HelpModalProps {
   show: boolean;
@@ -10,6 +11,19 @@ interface HelpModalProps {
 }
 
 export function HelpModal({ show, onClose }: HelpModalProps) {
+  useEffect(() => {
+    if (!show) return;
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [show, onClose]);
+
   return (
     <AnimatePresence>
       {show && (
