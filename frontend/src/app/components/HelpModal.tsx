@@ -12,16 +12,15 @@ interface HelpModalProps {
 
 export function HelpModal({ show, onClose }: HelpModalProps) {
   useEffect(() => {
+    if (!show) return;
+
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
       }
     };
 
-    if (show) {
-      document.addEventListener('keydown', handleEscape);
-    }
-
+    document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
   }, [show, onClose]);
 
