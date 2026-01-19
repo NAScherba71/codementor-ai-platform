@@ -499,3 +499,55 @@ resource "google_cloud_run_v2_service_iam_member" "ai_engine_backend" {
   role     = "roles/run.invoker"
   member   = "serviceAccount:${google_service_account.cloud_run.email}"
 }
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 💾 CLOUD STORAGE - MODEL CACHING
+# ═══════════════════════════════════════════════════════════════════════════
+
+# GCS Bucket for caching AI models (TinyLlama, CodeT5)
+resource "google_storage_bucket" "model_cache" {
+  count = var.enable_model_cache_bucket ? 1 : 0
+
+  name     = "${var.model_cache_bucket_name}-${var.project_id}"
+  location = var.model_cache_bucket_location
+
+  # Uniform bucket-level access
+  uniform_bucket_level_access = true
+
+  # Storage class for cost optimization
+  storage_class = "STANDARD"
+
+  # Lifecycle rule to clean up old models (optional)
+  lifecycle_rule {
+    condition {
+      age = 90 # Delete models older than 90 days
+    }
+    action {
+      type = "Delete"
+    }
+  }
+
+  labels = local.labels
+
+  depends_on = [google_project_service.apis["storage.googleapis.com"]]
+}
+
+# Grant AI Engine service account access to model cache bucket
+resource "google_storage_bucket_iam_member" "ai_engine_model_cache_access" {
+  count = var.enable_model_cache_bucket ? 1 : 0
+
+  bucket = google_storage_bucket.model_cache[0].name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.ai_engine.email}"
+}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 📋 ADDITIONAL API ENABLEMENT
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Enable Storage API for model caching
+resource "google_project_service" "storage_api" {
+  project            = var.project_id
+  service            = "storage.googleapis.com"
+  disable_on_destroy = false
+}
