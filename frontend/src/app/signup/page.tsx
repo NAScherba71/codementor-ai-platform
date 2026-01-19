@@ -15,6 +15,7 @@ export default function SignupStub() {
             <p className="text-sm font-semibold text-gray-500">How it works when live</p>
             <ol className="list-decimal space-y-2 pl-5 text-sm text-gray-700">
               <li>Enter email + password (or SSO) and receive JWT</li>
+              <li>Complete personalized onboarding (3-5 minutes)</li>
               <li>Profile bootstraps with recommended learning path</li>
               <li>First challenge unlocked with onboarding hints</li>
               <li>Progress, streaks, and XP sync to MongoDB/Redis</li>

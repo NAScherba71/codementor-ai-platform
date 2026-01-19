@@ -26,7 +26,7 @@ const learningStyles = [
       'Ask questions anytime, get instant explanations',
       'Step-by-step guidance through new concepts',
       'Learn at your own pace without pressure',
-      'Get hints when you're stuck'
+      'Get hints when you\'re stuck'
     ],
     bestFor: 'Best for learners who prefer explanations and want to understand the "why" behind code',
     color: 'blue'

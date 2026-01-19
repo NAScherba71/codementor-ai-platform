@@ -114,7 +114,7 @@ export default function SkillLevelStep({
                     .some(lang => lang.id === primaryLanguage)
                   
                   if (!isCompatible) {
-                    onUpdate({ skillLevel: level.id, primaryLanguage: null })
+                    onUpdate({ skillLevel: level.id, primaryLanguage: undefined })
                   }
                 }
               }}
