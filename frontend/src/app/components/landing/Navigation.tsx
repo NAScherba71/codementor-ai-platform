@@ -5,11 +5,11 @@ import { Menu, X, Code, HelpCircle } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useState } from 'react';
 import Link from 'next/link';
-import { HelpModal } from '../HelpModal';
+import { WelcomingTourModal } from '../WelcomingTourModal';
 
 export function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [helpModalOpen, setHelpModalOpen] = useState(false);
+  const [welcomingTourOpen, setWelcomingTourOpen] = useState(false);
 
   const navigation = [
     { name: 'Features', href: '#features' },
@@ -54,7 +54,7 @@ export function Navigation() {
               <Button
                 variant="ghost"
                 className="text-slate-700"
-                onClick={() => setHelpModalOpen(true)}
+                onClick={() => setWelcomingTourOpen(true)}
               >
                 <HelpCircle className="w-4 h-4 mr-2" />
                 Welcoming tour
@@ -104,7 +104,7 @@ export function Navigation() {
                     variant="ghost"
                     className="w-full justify-start"
                     onClick={() => {
-                      setHelpModalOpen(true);
+                      setWelcomingTourOpen(true);
                       setMobileMenuOpen(false);
                     }}
                   >
@@ -127,7 +127,7 @@ export function Navigation() {
           )}
         </div>
       </nav>
-      <HelpModal show={helpModalOpen} onClose={() => setHelpModalOpen(false)} />
+      <WelcomingTourModal show={welcomingTourOpen} onClose={() => setWelcomingTourOpen(false)} />
     </>
   );
 }
