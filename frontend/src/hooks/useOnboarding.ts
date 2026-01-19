@@ -81,10 +81,17 @@ export function useOnboarding(): UseOnboardingReturn {
    * Update onboarding data
    */
   const updateData = useCallback((data: Partial<OnboardingData>) => {
-    setOnboardingData(prev => ({
-      ...prev,
-      ...data
-    }))
+    setOnboardingData(prev => {
+      const updated = { ...prev, ...data }
+      // Handle explicit null/undefined values to reset fields
+      Object.keys(data).forEach(key => {
+        if (data[key as keyof OnboardingData] === undefined) {
+          // @ts-ignore - We're intentionally setting to null to clear
+          updated[key as keyof OnboardingData] = null
+        }
+      })
+      return updated
+    })
   }, [])
 
   /**
@@ -153,9 +160,12 @@ export function useOnboarding(): UseOnboardingReturn {
       toast.success('Onboarding completed! Welcome to CodeMentor!')
       
       // Redirect to dashboard after a brief delay
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         router.push('/dashboard')
       }, 2000)
+      
+      // Cleanup function would be in component unmount, but since we're redirecting
+      // we don't need to clear it here. The timeout is intentionally brief (2s).
       
       return result
     } catch (err: any) {

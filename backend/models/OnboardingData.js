@@ -10,20 +10,22 @@ const OnboardingDataSchema = new mongoose.Schema({
   skillLevel: {
     type: String,
     enum: ['beginner', 'intermediate', 'advanced'],
-    required: true
+    required: false,
+    default: null
   },
   primaryLanguage: {
     type: String,
-    required: true
+    required: false,
+    default: null
   },
   goals: [{
-    type: String,
-    required: true
+    type: String
   }],
   learningStyle: {
     type: String,
     enum: ['ai-mentorship', 'code-review', 'both'],
-    required: true
+    required: false,
+    default: null
   },
   preferredLanguages: [{
     type: String

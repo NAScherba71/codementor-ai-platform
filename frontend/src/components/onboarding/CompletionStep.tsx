@@ -6,7 +6,7 @@
  */
 
 import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Confetti from 'react-confetti'
 import { 
   Sparkles, 
@@ -44,7 +44,10 @@ export default function CompletionStep({
   const [showConfetti, setShowConfetti] = useState(true)
 
   // Stop confetti after 5 seconds
-  setTimeout(() => setShowConfetti(false), 5000)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => setShowConfetti(false), 5000)
+    return () => clearTimeout(timeoutId)
+  }, [])
 
   const selectedLanguage = PROGRAMMING_LANGUAGES.find(
     lang => lang.id === onboardingData.primaryLanguage
