@@ -83,7 +83,7 @@ export function HelpModal({ show, onClose }: HelpModalProps) {
                     <div>
                       <h4 className="font-semibold text-slate-800">"Strict" Code Review (Hard Code Review)</h4>
                       <p className="text-sm">
-                        Get honest and rigorous feedback on your code, just like from a senior developer. Find inconsistencies and bad practices.
+                        Get honest and rigorous feedback on your code, just like from a senior developer. Find vulnerabilities and bad practices.
                       </p>
                     </div>
                   </li>
