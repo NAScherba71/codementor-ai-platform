@@ -54,15 +54,15 @@ export function HelpModal({ show, onClose }: HelpModalProps) {
                   <BookOpen className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900">Добро пожаловать в CodeMentor!</h2>
-                  <p className="text-slate-500">Ваш персональный AI-помощник в обучении программированию.</p>
+                  <h2 className="text-2xl font-bold text-slate-900">Welcome to CodeMentor!</h2>
+                  <p className="text-slate-500">Your personal AI assistant for learning programming.</p>
                 </div>
               </div>
 
               <div className="text-slate-600 space-y-4">
                 <p>
-                  Эта платформа создана, чтобы помочь вам стать лучшим инженером, а не просто писать код. 
-                  Вот что вы можете здесь делать:
+                  This platform is created to help you become a better engineer, not just write code. 
+                  Here's what you can do here:
                 </p>
                 <ul className="space-y-5 my-6">
                   <li className="flex items-start gap-4">
@@ -70,9 +70,9 @@ export function HelpModal({ show, onClose }: HelpModalProps) {
                       <Brain className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-slate-800">AI Менторство</h4>
+                      <h4 className="font-semibold text-slate-800">AI Mentorship</h4>
                       <p className="text-sm">
-                        Начните обучение с нуля. AI-наставник адаптируется к вашему темпу и поможет освоить новые технологии.
+                        Start learning from scratch. The AI tutor adapts to your pace and helps you master new technologies.
                       </p>
                     </div>
                   </li>
@@ -81,9 +81,9 @@ export function HelpModal({ show, onClose }: HelpModalProps) {
                       <Zap className="w-5 h-5 text-red-600" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-slate-800">"Жёсткий" разбор кода (Hard Code Review)</h4>
+                      <h4 className="font-semibold text-slate-800">"Strict" Code Review (Hard Code Review)</h4>
                       <p className="text-sm">
-                        Получите честную и строгую оценку вашего кода, как от старшего разработчика. Найдите уязвимости и плохие практики.
+                        Get honest and rigorous feedback on your code, just like from a senior developer. Find inconsistencies and bad practices.
                       </p>
                     </div>
                   </li>
@@ -92,15 +92,15 @@ export function HelpModal({ show, onClose }: HelpModalProps) {
                       <Code className="w-5 h-5 text-purple-600" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-slate-800">Интерактивная песочница</h4>
+                      <h4 className="font-semibold text-slate-800">Interactive Sandbox</h4>
                       <p className="text-sm">
-                        Пишите код прямо в браузере и получайте мгновенный AI-анализ. Экспериментируйте без страха что-то сломать.
+                        Write code directly in the browser and get intelligent AI analysis. Experiment without fear of making mistakes.
                       </p>
                     </div>
                   </li>
                 </ul>
                 <p>
-                  Начните с выбора одного из режимов на главной странице или перейдите в свой профиль, чтобы увидеть путь обучения. Удачи!
+                  Start by selecting one of the modes on the main page or go to your profile to see your learning path. Good luck!
                 </p>
               </div>
 
@@ -109,7 +109,7 @@ export function HelpModal({ show, onClose }: HelpModalProps) {
                   onClick={onClose}
                   className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
                 >
-                  Понятно, спасибо!
+                  Got it, thanks!
                 </Button>
               </div>
             </div>
