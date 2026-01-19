@@ -1,4 +1,56 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import onboardingService from '@/services/onboarding.service'
+
 export default function DashboardStub() {
+  const router = useRouter()
+  const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true)
+
+  // Check onboarding status on mount
+  useEffect(() => {
+    const checkOnboardingStatus = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        
+        // Skip onboarding check if not logged in
+        if (!token) {
+          setIsCheckingOnboarding(false)
+          return
+        }
+
+        const status = await onboardingService.getStatus()
+        
+        // Redirect to onboarding if not completed
+        if (!status.isCompleted) {
+          router.push('/onboarding')
+          return
+        }
+        
+        setIsCheckingOnboarding(false)
+      } catch (error) {
+        console.error('Failed to check onboarding status:', error)
+        // Allow access to dashboard even if check fails
+        setIsCheckingOnboarding(false)
+      }
+    }
+
+    checkOnboardingStatus()
+  }, [router])
+
+  // Show loading while checking onboarding
+  if (isCheckingOnboarding) {
+    return (
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-16">
       <div className="mx-auto max-w-6xl">

@@ -151,7 +151,18 @@ const UserSchema = new mongoose.Schema({
     type: String,
     enum: ['student', 'mentor', 'admin', 'instructor'],
     default: 'student'
-  }]
+  }],
+  onboarding: {
+    isCompleted: {
+      type: Boolean,
+      default: false
+    },
+    completedAt: Date,
+    skipped: {
+      type: Boolean,
+      default: false
+    }
+  }
 }, {
   timestamps: true,
   toJSON: { virtuals: true },
