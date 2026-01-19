@@ -119,3 +119,17 @@ output "github_secrets_instructions" {
 
   EOT
 }
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 💾 STORAGE
+# ═══════════════════════════════════════════════════════════════════════════
+
+output "model_cache_bucket_name" {
+  description = "GCS bucket name for model caching"
+  value       = var.enable_model_cache_bucket ? google_storage_bucket.model_cache[0].name : null
+}
+
+output "model_cache_bucket_url" {
+  description = "GCS bucket URL for model caching"
+  value       = var.enable_model_cache_bucket ? google_storage_bucket.model_cache[0].url : null
+}
