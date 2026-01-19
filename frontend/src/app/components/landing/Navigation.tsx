@@ -57,7 +57,7 @@ export function Navigation() {
                 onClick={() => setHelpModalOpen(true)}
               >
                 <HelpCircle className="w-4 h-4 mr-2" />
-                Помощь
+                Welcoming tour
               </Button>
               <Link href="/dashboard">
                 <Button variant="ghost" className="text-slate-700">
@@ -109,7 +109,7 @@ export function Navigation() {
                     }}
                   >
                     <HelpCircle className="w-4 h-4 mr-2" />
-                    Помощь
+                    Welcoming tour
                   </Button>
                   <Link href="/dashboard" className="block">
                     <Button variant="ghost" className="w-full justify-start">
