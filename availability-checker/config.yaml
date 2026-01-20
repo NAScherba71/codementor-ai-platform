@@ -1,0 +1,33 @@
+# Availability Checker Configuration
+
+# Services to monitor
+services:
+  - name: "Frontend"
+    url: "https://codementor-frontend-31499486874.us-central1.run.app"
+  - name: "Backend"
+    url: "https://codementor-backend-31499486874.us-central1.run.app"
+  - name: "AI Engine"
+    url: "https://codementor-ai-engine-31499486874.us-central1.run.app"
+
+# Check interval in seconds (how often to perform automatic checks)
+check_interval: 60
+
+# Request timeout in seconds
+timeout: 10
+
+# HTTP request settings
+request:
+  method: "GET"
+  verify_ssl: true
+  follow_redirects: true
+
+# Logging configuration
+logging:
+  level: "INFO"
+  format: "json"
+  file: "availability.log"
+
+# Server configuration
+server:
+  host: "0.0.0.0"
+  port: 8080
