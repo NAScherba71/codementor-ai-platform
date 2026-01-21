@@ -6,6 +6,7 @@
 
 const express = require("express");
 const router = express.Router();
+const AIEngineService = require("../services/aiEngineService");
 
 // Google Gemini Provider
 class GeminiProvider {
@@ -206,6 +207,9 @@ const providers = {
   openrouter: new OpenRouterProvider(),
 };
 
+// Initialize AI Engine Service
+const aiEngine = new AIEngineService();
+
 // Chat endpoint with provider selection
 router.post("/api/ai-console/chat", async (req, res) => {
   try {
@@ -278,32 +282,11 @@ router.post("/api/ai-console/analyze", async (req, res) => {
       return res.status(400).json({ error: "Code is required" });
     }
 
-    const aiEngineUrl =
-      process.env.AI_ENGINE_URL ||
-      process.env.PYTHON_AI_ENGINE_URL ||
-      "http://localhost:5000";
+    const analysis = await aiEngine.analyzeCode(code, language);
 
-    const response = await fetch(`${aiEngineUrl}/code/analyze`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ code, language }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      return res.status(response.status).json({
-        error: "AI engine analysis failed",
-        details: errorText,
-      });
-    }
-
-    const data = await response.json();
-
-    return res.json({
+    res.json({
       success: true,
-      analysis: data.analysis || data,
+      analysis: analysis,
     });
   } catch (error) {
     console.error("AI console analyze error:", error);
