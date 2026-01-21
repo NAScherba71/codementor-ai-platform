@@ -270,7 +270,7 @@ router.post("/api/ai-console/chat", async (req, res) => {
 });
 
 // Code analysis endpoint
-router.post("/api/ai-console/analyze", (req, res) => {
+router.post("/api/ai-console/analyze", async (req, res) => {
   try {
     const { code, language = "python" } = req.body;
 
@@ -278,14 +278,36 @@ router.post("/api/ai-console/analyze", (req, res) => {
       return res.status(400).json({ error: "Code is required" });
     }
 
-    const analysis = aiEngine.analyzeCode(code, language);
+    const aiEngineUrl =
+      process.env.AI_ENGINE_URL ||
+      process.env.PYTHON_AI_ENGINE_URL ||
+      "http://localhost:5000";
 
-    res.json({
+    const response = await fetch(`${aiEngineUrl}/code/analyze`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ code, language }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return res.status(response.status).json({
+        error: "AI engine analysis failed",
+        details: errorText,
+      });
+    }
+
+    const data = await response.json();
+
+    return res.json({
       success: true,
-      analysis: analysis,
+      analysis: data.analysis || data,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("AI console analyze error:", error);
+    return res.status(500).json({ error: error.message });
   }
 });
 
