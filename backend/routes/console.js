@@ -284,7 +284,7 @@ router.post("/api/ai-console/analyze", async (req, res) => {
 
     const analysis = await aiEngine.analyzeCode(code, language);
 
-    res.json({
+    return res.json({
       success: true,
       analysis: analysis,
     });

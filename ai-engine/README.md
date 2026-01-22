@@ -77,10 +77,64 @@ The AI engine will start on port 5000 and expose REST API endpoints for the main
 ### API Endpoints
 
 - `POST /ai-tutor/chat` - AI tutor conversational interface (uses TinyLlama)
+- `POST /llm/chat` - Unified LLM chat (local, Gemini, OpenRouter)
 - `POST /code/analyze` - Code analysis with AI insights (uses CodeT5)
 - `POST /challenges/generate` - Adaptive challenge generation
 - `POST /learning-path/recommend` - Personalized learning paths
 - `GET /health` - Health check
+
+### LLM Providers (step-by-step)
+
+Use `POST /llm/chat` with a `provider` value of `local`, `gemini`, or `openrouter`.
+
+#### 1) Local LLM (TinyLlama)
+
+1. Install dependencies and cache models:
+   ```bash
+   cd ai-engine
+   pip install -r requirements.txt
+   python init_models.py
+   ```
+2. Run the service:
+   ```bash
+   python main.py
+   ```
+3. Test local chat:
+   ```bash
+   curl -X POST http://localhost:5000/llm/chat \\
+     -H 'Content-Type: application/json' \\
+     -d '{"provider":"local","message":"Explain closures in Python"}'
+   ```
+
+#### 2) Gemini (Vertex AI)
+
+1. Set environment variables:
+   ```bash
+   export GCP_PROJECT_ID=your-project-id
+   export GCP_LOCATION=us-central1
+   export GEMINI_MODEL=gemini-1.5-flash-001
+   ```
+2. Ensure Vertex AI auth is configured (service account or `gcloud auth application-default login`).
+3. Run the service and test Gemini:
+   ```bash
+   curl -X POST http://localhost:5000/llm/chat \\
+     -H 'Content-Type: application/json' \\
+     -d '{"provider":"gemini","message":"Suggest performance improvements for a recursive Fibonacci"}'
+   ```
+
+#### 3) OpenRouter
+
+1. Set API key and optional model:
+   ```bash
+   export OPENROUTER_API_KEY=your-key
+   export OPENROUTER_MODEL=openai/gpt-4o-mini
+   ```
+2. Run the service and test OpenRouter:
+   ```bash
+   curl -X POST http://localhost:5000/llm/chat \\
+     -H 'Content-Type: application/json' \\
+     -d '{"provider":"openrouter","message":"Review this code for security issues"}'
+   ```
 
 ### Performance
 
