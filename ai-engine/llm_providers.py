@@ -172,7 +172,7 @@ class LLMManager:
         provider_key = (provider or "local").lower()
         if provider_key not in self.providers:
             raise LLMProviderError(
-                f"Unsupported provider: {provider_key}."
+                f"Unsupported provider: {provider_key}"
             )
 
         handler = self.providers[provider_key]
