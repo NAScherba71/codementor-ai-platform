@@ -18,6 +18,7 @@ from models import get_custom_tutor, get_custom_analyzer
 from self_evolve import SelfEvolutionEngine, migrate_to_local
 from assessment import AssessmentEngine
 from gcp_integration import GCPIntegrationManager
+from llm_providers import LLMManager, LLMProviderError
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -399,6 +400,7 @@ code_analyzer = CodeAnalyzer()
 self_evolution_engine = SelfEvolutionEngine()
 assessment_engine = AssessmentEngine()
 gcp_manager = GCPIntegrationManager()
+llm_manager = LLMManager()
 
 # API Routes
 
@@ -433,6 +435,47 @@ def ai_tutor_chat():
         
     except Exception as e:
         logger.error(f"AI tutor chat error: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/llm/chat', methods=['POST'])
+def llm_chat():
+    """Unified LLM chat endpoint for local, Gemini, and OpenRouter providers."""
+    try:
+        data = request.get_json() or {}
+
+        message = data.get('message', '')
+        provider = data.get('provider', 'local')
+        personality = data.get('personality', 'encouraging')
+        context = data.get('context', {})
+        model = data.get('model')
+        api_key = data.get('api_key')
+
+        if not message:
+            return jsonify({'error': 'Message is required'}), 400
+
+        response = llm_manager.chat(
+            provider=provider,
+            message=message,
+            personality=personality,
+            context=context,
+            model=model,
+            api_key=api_key,
+        )
+
+        return jsonify({
+            'success': True,
+            'provider': provider,
+            'response': response,
+        })
+
+    except LLMProviderError as error:
+        logger.error(f"LLM provider error: {error}")
+        return jsonify({
+            'error': str(error),
+            'supported_providers': llm_manager.supported_providers(),
+        }), 400
+    except Exception as e:
+        logger.error(f"LLM chat error: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/challenges/generate', methods=['POST'])
