@@ -40,6 +40,34 @@ The pipeline (`cloudbuild.yaml`) performs:
 3. Parallel Docker Builds
 4. Image Pushing to Artifact Registry
 
+### ⚠️ Important: Environment Configuration for Production
+
+**Required Environment Variable:**
+
+The frontend **MUST** have `NEXT_PUBLIC_API_URL` set to the backend service URL in production:
+
+```bash
+# For Cloud Run deployment
+gcloud run services update codementor-frontend \
+  --region=us-central1 \
+  --set-env-vars="NEXT_PUBLIC_API_URL=https://codementor-backend-xxx.us-central1.run.app"
+```
+
+**Without this configuration:**
+- Users will see "Backend service not configured" error (503)
+- Code analysis will fail
+- Health check endpoint (`/api/health`) will show degraded status
+
+**Testing deployment:**
+```bash
+# Check health endpoint
+curl https://your-frontend-url.run.app/api/health
+
+# Should show backend as "connected" not "unreachable"
+```
+
+For detailed troubleshooting, see [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
+
 ### Phase 1: GCP Bootstrap
 
 1. Set up Google Cloud Project with Vertex AI enabled.
