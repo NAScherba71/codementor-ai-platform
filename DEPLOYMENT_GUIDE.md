@@ -182,12 +182,31 @@ Test each service endpoint:
 # Frontend
 curl https://codementor-frontend-PROJECT_ID.us-central1.run.app
 
+# Frontend health check (includes backend connectivity test)
+curl https://codementor-frontend-PROJECT_ID.us-central1.run.app/api/health
+
 # Backend health check
 curl https://codementor-backend-PROJECT_ID.us-central1.run.app/health
 
 # AI Engine health check
 curl https://codementor-ai-engine-PROJECT_ID.us-central1.run.app/health
 ```
+
+**Expected frontend health check response:**
+```json
+{
+  "status": "healthy",
+  "frontend": "healthy",
+  "backend": "healthy",
+  "backend_url": "https://codementor-backend-xxx.run.app",
+  "is_configured": true,
+  "checks": {
+    "backend_reachable": true
+  }
+}
+```
+
+⚠️ **If you see `"is_configured": false`** or `"backend": "unreachable"`, follow the troubleshooting steps in section [4. "Failed to analyze code: 500" Error](#4-failed-to-analyze-code-500-error).
 
 ### 2. Configure Secrets
 
@@ -305,7 +324,82 @@ gcloud projects add-iam-policy-binding PROJECT_ID \
   --role=ROLE_NAME
 ```
 
-#### 4. Terraform State Issues
+#### 4. "Failed to analyze code: 500" Error
+
+**This is the most common issue for new deployments.**
+
+**Symptoms:**
+- Users see "Failed to analyze code: 500" when trying to run code analysis
+- Error message says "Cannot connect to backend service"
+- Health check shows `backend_url: "http://localhost:3001"` with `is_configured: false`
+
+**Root Cause:**
+The frontend is not configured with the backend's Cloud Run URL and is trying to connect to `localhost`, which doesn't work in Cloud Run.
+
+**Solution:**
+
+1. **Get your backend URL:**
+   ```bash
+   gcloud run services describe codementor-backend \
+     --region=us-central1 \
+     --format='value(status.url)'
+   ```
+   
+   Example output: `https://codementor-backend-31499486874.us-central1.run.app`
+
+2. **Configure the frontend with the backend URL:**
+   
+   The frontend needs `NEXT_PUBLIC_API_URL` environment variable set **at build time**.
+   
+   ```bash
+   # Rebuild frontend with backend URL
+   cd frontend
+   docker build \
+     --build-arg NEXT_PUBLIC_API_URL=https://codementor-backend-31499486874.us-central1.run.app \
+     -t us-central1-docker.pkg.dev/PROJECT_ID/app/frontend:latest \
+     .
+   
+   # Push the new image
+   docker push us-central1-docker.pkg.dev/PROJECT_ID/app/frontend:latest
+   
+   # Deploy the frontend
+   gcloud run deploy codementor-frontend \
+     --image=us-central1-docker.pkg.dev/PROJECT_ID/app/frontend:latest \
+     --region=us-central1 \
+     --set-env-vars="NEXT_PUBLIC_API_URL=https://codementor-backend-31499486874.us-central1.run.app"
+   ```
+
+3. **Verify the fix:**
+   ```bash
+   # Check frontend health endpoint
+   curl https://YOUR-FRONTEND-URL.run.app/api/health
+   ```
+   
+   You should see:
+   ```json
+   {
+     "status": "healthy",
+     "backend_url": "https://codementor-backend-xxx.run.app",
+     "is_configured": true,
+     "checks": {
+       "backend_reachable": true
+     }
+   }
+   ```
+
+**Why this happens:**
+- Next.js `NEXT_PUBLIC_*` variables are embedded at **build time**, not runtime
+- Setting the environment variable without rebuilding won't work
+- You must rebuild the Docker image with the correct backend URL
+
+**Prevention:**
+Use the automated deployment script `./scripts/deploy-gcp.sh` which handles this automatically, or update your Terraform configuration to pass the backend URL during frontend build.
+
+**For detailed configuration instructions, see:**
+- `frontend/BACKEND_CONFIG.md` - Complete backend configuration guide
+- Environment variable reference in `frontend/.env.example`
+
+#### 5. Terraform State Issues
 
 ```bash
 # Refresh Terraform state

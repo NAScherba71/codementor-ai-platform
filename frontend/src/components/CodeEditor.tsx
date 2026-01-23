@@ -19,6 +19,9 @@ print(f"Result: {result}")
 
   const [language, setLanguage] = useState('python')
   const [copied, setCopied] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [errorDetails, setErrorDetails] = useState<any>(null)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
 
   const handleEditorChange = (value: string | undefined) => {
     if (value) setCode(value)
@@ -31,6 +34,10 @@ print(f"Result: {result}")
   }
 
   const handleRun = async () => {
+    setError(null)
+    setErrorDetails(null)
+    setIsAnalyzing(true)
+    
     try {
       // Use environment variable or fallback to relative path for local dev
       const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || '';
@@ -50,9 +57,22 @@ print(f"Result: {result}")
       })
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API error:', response.status, errorText);
-        alert(`Failed to analyze code: ${response.status} ${response.statusText}`);
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch {
+          errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
+        }
+        
+        console.error('API error:', response.status, errorData);
+        
+        // Display detailed error information
+        if (errorData.troubleshooting) {
+          setError(errorData.error || 'Analysis failed');
+          setErrorDetails(errorData);
+        } else {
+          setError(`Failed to analyze code: ${response.status} ${response.statusText}`);
+        }
         return;
       }
 
@@ -61,12 +81,28 @@ print(f"Result: {result}")
         // Open playground with analysis results
         window.open('/playground?code=' + encodeURIComponent(code), '_blank')
       } else {
-        console.error('Analysis failed:', data.error);
-        alert('Analysis failed: ' + (data.error || 'Unknown error'));
+        console.error('Analysis failed:', data);
+        
+        // Display detailed error if available
+        if (data.troubleshooting) {
+          setError(data.error || 'Analysis failed');
+          setErrorDetails(data);
+        } else {
+          setError(data.error || 'Unknown error occurred');
+        }
       }
     } catch (error) {
       console.error('Error analyzing code:', error)
-      alert('Error connecting to backend: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      setError('Error connecting to backend');
+      setErrorDetails({
+        details: error instanceof Error ? error.message : 'Unknown error',
+        troubleshooting: {
+          likely_cause: 'Network connectivity issue or backend service is down',
+          solution: 'Check your internet connection and verify the backend service is running'
+        }
+      });
+    } finally {
+      setIsAnalyzing(false)
     }
   }
 
@@ -114,10 +150,11 @@ print(f"Result: {result}")
 
           <button
             onClick={handleRun}
-            className="flex items-center gap-1.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white px-3 py-1.5 rounded text-sm font-medium transition-all shadow-lg"
+            disabled={isAnalyzing}
+            className="flex items-center gap-1.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white px-3 py-1.5 rounded text-sm font-medium transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Play className="w-4 h-4" />
-            Run
+            {isAnalyzing ? 'Analyzing...' : 'Run'}
           </button>
         </div>
       </div>
@@ -143,6 +180,68 @@ print(f"Result: {result}")
           }}
         />
       </div>
+
+      {/* Error Display */}
+      {error && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3"
+        >
+          <div className="flex items-start gap-2">
+            <div className="text-red-600 font-semibold text-sm">❌ {error}</div>
+            <button
+              onClick={() => { setError(null); setErrorDetails(null); }}
+              className="ml-auto text-red-400 hover:text-red-600 text-xs"
+            >
+              ✕
+            </button>
+          </div>
+          
+          {errorDetails && (
+            <div className="space-y-2 text-sm">
+              {errorDetails.details && (
+                <div className="text-red-700">
+                  <span className="font-medium">Details:</span> {errorDetails.details}
+                </div>
+              )}
+              
+              {errorDetails.troubleshooting && (
+                <div className="bg-red-100 rounded p-3 space-y-2">
+                  <div className="font-semibold text-red-900">🔧 Troubleshooting</div>
+                  
+                  {errorDetails.troubleshooting.likely_cause && (
+                    <div className="text-red-800">
+                      <span className="font-medium">Likely cause:</span> {errorDetails.troubleshooting.likely_cause}
+                    </div>
+                  )}
+                  
+                  {errorDetails.troubleshooting.solution && (
+                    <div className="text-red-800">
+                      <span className="font-medium">Solution:</span> {errorDetails.troubleshooting.solution}
+                    </div>
+                  )}
+                  
+                  {errorDetails.troubleshooting.documentation && (
+                    <div className="text-red-700 text-xs">
+                      📖 {errorDetails.troubleshooting.documentation}
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {errorDetails.backend_url && (
+                <div className="text-red-600 text-xs font-mono">
+                  Backend URL: {errorDetails.backend_url}
+                  {errorDetails.is_configured === false && (
+                    <span className="ml-2 text-red-500">(not configured - using fallback)</span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </motion.div>
+      )}
 
       {/* Info message */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
