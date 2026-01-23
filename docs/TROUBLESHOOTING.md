@@ -272,6 +272,8 @@ npm run build
 # Deploy the built version
 ```
 
+> ⚠️ **CRITICAL LIMITATION**: Environment variables in Next.js that start with `NEXT_PUBLIC_` are bundled at **build time**, not runtime. This means you must rebuild the frontend whenever you change this variable. Simply updating the Cloud Run environment variable is NOT sufficient - the application must be rebuilt with the new value.
+
 **Option 2: Use Runtime Configuration**
 The platform now uses a proxy approach where the frontend proxies requests to the backend, so the `NEXT_PUBLIC_API_URL` is only used for the initial frontend → backend proxy connection, not from the browser.
 

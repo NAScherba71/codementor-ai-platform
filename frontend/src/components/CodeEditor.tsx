@@ -95,8 +95,9 @@ print(f"Result: {result}")
     } catch (error) {
       console.error('Error analyzing code:', error)
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      const errorName = error instanceof Error ? error.name : '';
       
-      if (errorMsg.includes('fetch') || errorMsg.includes('network')) {
+      if (errorName === 'TypeError' || errorMsg.includes('Failed to fetch')) {
         setErrorMessage(
           '🔌 Cannot connect to the backend service. Please check your internet connection and try again.'
         );

@@ -133,7 +133,7 @@ export async function proxyToBackend(
     } catch (fetchError) {
       clearTimeout(timeoutId);
       
-      // Handle timeout or network errors
+      // Handle timeout errors
       if (fetchError instanceof Error && fetchError.name === 'AbortError') {
         console.error(`❌ Request timeout for ${targetUrl}`);
         return NextResponse.json(
@@ -154,41 +154,44 @@ export async function proxyToBackend(
         );
       }
       
-      throw fetchError; // Re-throw other fetch errors to be caught by outer catch
+      // Handle other network/fetch errors
+      const errorMessage = fetchError instanceof Error ? fetchError.message : 'Unknown error';
+      const errorCause = (fetchError as any)?.cause;
+      const isConnectionRefused = errorCause?.code === 'ECONNREFUSED' || 
+                                 errorCause?.code === 'ENOTFOUND';
+      
+      if (isConnectionRefused || errorMessage.includes('fetch failed')) {
+        console.error(`❌ Network error - cannot reach backend at ${targetUrl}`);
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Cannot connect to backend service',
+            details: errorMessage,
+            troubleshooting: {
+              message: 'Unable to establish connection to the backend service.',
+              steps: [
+                'Verify the backend service is running',
+                'Check the NEXT_PUBLIC_API_URL environment variable is set correctly',
+                'Ensure network connectivity between frontend and backend',
+                'For Cloud Run: Verify the backend service is deployed and accessible',
+                'Check backend service logs for startup errors'
+              ]
+            }
+          },
+          { status: 503 }
+        );
+      }
+      
+      // Re-throw unexpected errors to outer catch
+      throw fetchError;
     }
   } catch (error) {
     console.error(`❌ Proxy error for ${endpoint}:`, error);
     
     // Determine error type and provide helpful message
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const isNetworkError = errorMessage.includes('fetch') || 
-                          errorMessage.includes('ECONNREFUSED') || 
-                          errorMessage.includes('ENOTFOUND') ||
-                          errorMessage.includes('network');
     
-    if (isNetworkError) {
-      console.error(`❌ Network error - cannot reach backend at ${targetUrl || 'unknown URL'}`);
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Cannot connect to backend service',
-          details: errorMessage,
-          troubleshooting: {
-            message: 'Unable to establish connection to the backend service.',
-            steps: [
-              'Verify the backend service is running',
-              'Check the NEXT_PUBLIC_API_URL environment variable is set correctly',
-              'Ensure network connectivity between frontend and backend',
-              'For Cloud Run: Verify the backend service is deployed and accessible',
-              'Check backend service logs for startup errors'
-            ]
-          }
-        },
-        { status: 503 }
-      );
-    }
-    
-    // Generic error response
+    // Generic error response for unexpected errors
     return NextResponse.json(
       {
         success: false,
