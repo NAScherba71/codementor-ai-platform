@@ -19,6 +19,8 @@ print(f"Result: {result}")
 
   const [language, setLanguage] = useState('python')
   const [copied, setCopied] = useState(false)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const handleEditorChange = (value: string | undefined) => {
     if (value) setCode(value)
@@ -31,6 +33,9 @@ print(f"Result: {result}")
   }
 
   const handleRun = async () => {
+    setIsAnalyzing(true);
+    setErrorMessage(null);
+    
     try {
       // Use environment variable or fallback to relative path for local dev
       const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || '';
@@ -50,9 +55,32 @@ print(f"Result: {result}")
       })
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API error:', response.status, errorText);
-        alert(`Failed to analyze code: ${response.status} ${response.statusText}`);
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch {
+          errorData = { error: 'Unknown error', details: await response.text() };
+        }
+        
+        console.error('API error:', response.status, errorData);
+        
+        // Show user-friendly error message based on response
+        if (response.status === 503) {
+          setErrorMessage(
+            '⚠️ Backend service is not available. ' +
+            (errorData.troubleshooting ? 
+              'Please check your deployment configuration.' : 
+              'Please try again later.')
+          );
+        } else if (response.status === 504) {
+          setErrorMessage(
+            '⏱️ Request timed out. The backend service is taking too long to respond. Please try again.'
+          );
+        } else {
+          setErrorMessage(
+            `❌ Failed to analyze code (${response.status}): ${errorData.error || response.statusText}`
+          );
+        }
         return;
       }
 
@@ -62,11 +90,21 @@ print(f"Result: {result}")
         window.open('/playground?code=' + encodeURIComponent(code), '_blank')
       } else {
         console.error('Analysis failed:', data.error);
-        alert('Analysis failed: ' + (data.error || 'Unknown error'));
+        setErrorMessage(`❌ Analysis failed: ${data.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error analyzing code:', error)
-      alert('Error connecting to backend: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      
+      if (errorMsg.includes('fetch') || errorMsg.includes('network')) {
+        setErrorMessage(
+          '🔌 Cannot connect to the backend service. Please check your internet connection and try again.'
+        );
+      } else {
+        setErrorMessage(`❌ Error: ${errorMsg}`);
+      }
+    } finally {
+      setIsAnalyzing(false);
     }
   }
 
@@ -114,10 +152,11 @@ print(f"Result: {result}")
 
           <button
             onClick={handleRun}
-            className="flex items-center gap-1.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white px-3 py-1.5 rounded text-sm font-medium transition-all shadow-lg"
+            disabled={isAnalyzing}
+            className="flex items-center gap-1.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white px-3 py-1.5 rounded text-sm font-medium transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Play className="w-4 h-4" />
-            Run
+            {isAnalyzing ? 'Analyzing...' : 'Run'}
           </button>
         </div>
       </div>
@@ -143,6 +182,17 @@ print(f"Result: {result}")
           }}
         />
       </div>
+
+      {/* Error message */}
+      {errorMessage && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
+          <div className="font-semibold mb-1">Error</div>
+          <div>{errorMessage}</div>
+          <div className="mt-2 text-xs text-red-600">
+            💡 Tip: If you're deploying to production, make sure the <code className="bg-red-100 px-1 py-0.5 rounded">NEXT_PUBLIC_API_URL</code> environment variable is set correctly.
+          </div>
+        </div>
+      )}
 
       {/* Info message */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
