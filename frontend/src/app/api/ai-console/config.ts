@@ -14,6 +14,8 @@ const IS_CONFIGURED = !!(process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_
 const REQUEST_TIMEOUT_MS = 30000; // 30 seconds
 
 // Validate configuration on module load
+// Note: In serverless environments (Cloud Run), this executes once per cold start
+// which is acceptable for logging configuration status
 if (!IS_CONFIGURED && IS_PRODUCTION) {
   console.warn('⚠️  WARNING: Backend URL not configured for production deployment!');
   console.warn('   Using localhost fallback which will fail in Cloud Run.');
@@ -21,10 +23,10 @@ if (!IS_CONFIGURED && IS_PRODUCTION) {
 }
 
 // Log backend URL on startup
+// This helps with debugging and verifying configuration
 console.log(`✓ Backend URL configured: ${BACKEND_URL}`);
 console.log(`  Environment: ${process.env.NODE_ENV || 'development'}`);
 console.log(`  Explicitly configured: ${IS_CONFIGURED ? 'Yes' : 'No (using fallback)'}`);
-
 /**
  * Validate URL format
  */
@@ -54,6 +56,8 @@ export function isBackendConfigured(): boolean {
 
 /**
  * Categorize error type for better user messaging
+ * @param error - The error object to categorize
+ * @returns Object containing error category, user-friendly message, and troubleshooting advice
  */
 function categorizeError(error: Error): {
   category: 'network' | 'timeout' | 'config' | 'unknown';

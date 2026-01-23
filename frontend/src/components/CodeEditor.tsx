@@ -19,8 +19,20 @@ print(f"Result: {result}")
 
   const [language, setLanguage] = useState('python')
   const [copied, setCopied] = useState(false)
+  
+  interface ErrorDetails {
+    details?: string;
+    troubleshooting?: {
+      likely_cause?: string;
+      solution?: string;
+      documentation?: string;
+    };
+    backend_url?: string;
+    is_configured?: boolean;
+  }
+  
   const [error, setError] = useState<string | null>(null)
-  const [errorDetails, setErrorDetails] = useState<any>(null)
+  const [errorDetails, setErrorDetails] = useState<ErrorDetails | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
 
   const handleEditorChange = (value: string | undefined) => {

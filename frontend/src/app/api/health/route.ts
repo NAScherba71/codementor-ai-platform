@@ -38,6 +38,7 @@ export async function GET() {
     healthStatus.checks.backend_reachable = response.ok;
     healthStatus.backend = response.ok ? 'healthy' : 'unhealthy';
     
+    // Determine overall status
     if (response.ok && isConfigured) {
       healthStatus.status = 'healthy';
     } else if (!isConfigured) {
@@ -48,12 +49,21 @@ export async function GET() {
   } catch (error) {
     console.error('[Health Check] Backend unreachable:', error);
     healthStatus.backend = 'unreachable';
-    healthStatus.status = isConfigured ? 'unhealthy' : 'warning';
     healthStatus.checks.backend_reachable = false;
+    
+    // Determine status based on configuration
+    if (isConfigured) {
+      healthStatus.status = 'unhealthy';
+    } else {
+      healthStatus.status = 'warning';
+    }
   }
 
-  const statusCode = healthStatus.status === 'healthy' ? 200 : 
-                     healthStatus.status === 'warning' ? 200 : 503;
+  // Determine HTTP status code
+  let statusCode = 200;
+  if (healthStatus.status === 'unhealthy') {
+    statusCode = 503;
+  }
 
   return NextResponse.json(healthStatus, { status: statusCode });
 }
