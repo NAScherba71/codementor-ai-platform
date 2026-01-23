@@ -180,6 +180,8 @@ services:
 ### Purpose
 Checks the health of the frontend and its connection to the backend.
 
+> **Note**: The health check attempts to connect to the backend's `/health` endpoint. Ensure your backend implements this endpoint for accurate health reporting.
+
 ### Usage
 
 ```bash
