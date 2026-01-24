@@ -4,6 +4,41 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+// Configuration validation and logging
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 
+                    process.env.BACKEND_API_URL || 
+                    'http://localhost:3001';
+
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const IS_CONFIGURED = !!(process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_API_URL);
+const REQUEST_TIMEOUT_MS = 30000; // 30 seconds
+
+// Validate configuration on module load
+// Note: In serverless environments (Cloud Run), this executes once per cold start
+// which is acceptable for logging configuration status
+if (!IS_CONFIGURED && IS_PRODUCTION) {
+  console.warn('⚠️  WARNING: Backend URL not configured for production deployment!');
+  console.warn('   Using localhost fallback which will fail in Cloud Run.');
+  console.warn('   Please set NEXT_PUBLIC_API_URL environment variable.');
+}
+
+// Log backend URL on startup
+// This helps with debugging and verifying configuration
+console.log(`✓ Backend URL configured: ${BACKEND_URL}`);
+console.log(`  Environment: ${process.env.NODE_ENV || 'development'}`);
+console.log(`  Explicitly configured: ${IS_CONFIGURED ? 'Yes' : 'No (using fallback)'}`);
+/**
+ * Validate URL format
+ */
+function isValidUrl(urlString: string): boolean {
+  try {
+    const url = new URL(urlString);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Check if we're running in production environment
  */
@@ -17,28 +52,18 @@ function isProduction(): boolean {
  * @throws Error in production if no backend URL is configured
  */
 export function getBackendUrl(): string {
-  const backendUrl = 
-    process.env.NEXT_PUBLIC_API_URL || 
-    process.env.BACKEND_API_URL || 
-    '';
-  
-  // In production, require explicit backend URL configuration
-  if (isProduction() && !backendUrl) {
-    console.error('❌ BACKEND URL NOT CONFIGURED: NEXT_PUBLIC_API_URL environment variable is required in production');
-    throw new Error('Backend service not configured. Please set NEXT_PUBLIC_API_URL environment variable.');
-  }
-  
-  // In development, use localhost fallback
-  const finalUrl = backendUrl || 'http://localhost:3001';
-  
-  // Log the backend URL being used (without sensitive data)
-  console.log(`🔗 Backend URL: ${finalUrl} (environment: ${process.env.NODE_ENV || 'development'})`);
-  
-  return finalUrl;
+  return BACKEND_URL;
 }
 
 /**
- * Proxy a POST request to the backend API
+ * Check if backend URL is properly configured
+ */
+export function isBackendConfigured(): boolean {
+  return IS_CONFIGURED;
+}
+
+/**
+ * Proxy a POST request to the backend API with enhanced error handling
  * @param request - The incoming Next.js request
  * @param endpoint - The backend endpoint path (e.g., '/api/ai-console/analyze')
  * @returns NextResponse with the backend's response or error
@@ -47,43 +72,20 @@ export async function proxyToBackend(
   request: NextRequest,
   endpoint: string
 ): Promise<NextResponse> {
-  let backendUrl: string = '';
-  let targetUrl: string = '';
+  const startTime = Date.now();
+  const backendUrl = getBackendUrl();
+  const targetUrl = `${backendUrl}${endpoint}`;
+  
+  // Log the request
+  console.log(`[Proxy] ${endpoint} -> ${targetUrl}`);
   
   try {
-    // Get backend URL - this may throw if not configured in production
-    try {
-      backendUrl = getBackendUrl();
-      targetUrl = `${backendUrl}${endpoint}`;
-    } catch (configError) {
-      console.error('❌ Configuration error:', configError);
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Backend service not configured',
-          details: configError instanceof Error ? configError.message : 'Unknown configuration error',
-          troubleshooting: {
-            message: 'The backend service URL is not configured.',
-            steps: [
-              'Set the NEXT_PUBLIC_API_URL environment variable',
-              'For Cloud Run: Use the backend service URL (e.g., https://codementor-backend-xxx.region.run.app)',
-              'For local development: Use http://localhost:3001',
-              'Restart the application after setting the environment variable'
-            ]
-          }
-        },
-        { status: 503 }
-      );
-    }
-    
-    console.log(`📤 Proxying request to: ${targetUrl}`);
-    
     // Parse request body with error handling
     let body;
     try {
       body = await request.json();
     } catch (parseError) {
-      console.error('❌ Invalid request body:', parseError);
+      console.error('[Proxy] Invalid request body:', parseError);
       return NextResponse.json(
         {
           success: false,
@@ -94,11 +96,12 @@ export async function proxyToBackend(
       );
     }
     
-    // Forward request to backend with timeout
+    // Create abort controller for timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     
     try {
+      // Forward request to backend
       const response = await fetch(targetUrl, {
         method: 'POST',
         headers: {
@@ -110,7 +113,8 @@ export async function proxyToBackend(
       
       clearTimeout(timeoutId);
       
-      console.log(`📥 Response status: ${response.status}`);
+      const duration = Date.now() - startTime;
+      console.log(`[Proxy] ${endpoint} completed in ${duration}ms (status: ${response.status})`);
       
       // Check if response is JSON
       const contentType = response.headers.get('content-type');
@@ -120,7 +124,7 @@ export async function proxyToBackend(
       } else {
         // Handle non-JSON responses
         const text = await response.text();
-        console.error('❌ Non-JSON response from backend:', text);
+        console.error(`[Proxy] Non-JSON response from ${endpoint}:`, text);
         return NextResponse.json(
           {
             success: false,
@@ -135,70 +139,72 @@ export async function proxyToBackend(
       
       // Handle timeout errors
       if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-        console.error(`❌ Request timeout for ${targetUrl}`);
+        console.error(`[Proxy] Request timeout for ${targetUrl}`);
         return NextResponse.json(
           {
             success: false,
             error: 'Backend service timeout',
-            details: 'The backend service did not respond within 30 seconds',
+            details: `The backend service did not respond within ${REQUEST_TIMEOUT_MS / 1000} seconds`,
             troubleshooting: {
-              message: 'The backend service is taking too long to respond.',
-              steps: [
-                'Check if the backend service is running',
-                'Verify the backend service URL is correct',
-                'Check backend service logs for errors'
-              ]
-            }
+              likely_cause: 'Backend service is slow or overloaded',
+              solution: 'Check backend service health and performance',
+              documentation: 'See DEPLOYMENT_GUIDE.md and frontend/BACKEND_CONFIG.md'
+            },
+            backend_url: backendUrl,
+            is_configured: IS_CONFIGURED,
+            error_category: 'timeout'
           },
           { status: 504 }
         );
       }
       
-      // Handle other network/fetch errors
-      const errorMessage = fetchError instanceof Error ? fetchError.message : 'Unknown error';
-      const errorCause = (fetchError as any)?.cause;
-      const isConnectionRefused = errorCause?.code === 'ECONNREFUSED' || 
-                                 errorCause?.code === 'ENOTFOUND';
-      
-      if (isConnectionRefused || errorMessage.includes('fetch failed')) {
-        console.error(`❌ Network error - cannot reach backend at ${targetUrl}`);
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Cannot connect to backend service',
-            details: errorMessage,
-            troubleshooting: {
-              message: 'Unable to establish connection to the backend service.',
-              steps: [
-                'Verify the backend service is running',
-                'Check the NEXT_PUBLIC_API_URL environment variable is set correctly',
-                'Ensure network connectivity between frontend and backend',
-                'For Cloud Run: Verify the backend service is deployed and accessible',
-                'Check backend service logs for startup errors'
-              ]
-            }
-          },
-          { status: 503 }
-        );
-      }
-      
-      // Re-throw unexpected errors to outer catch
+      // Re-throw for outer catch
       throw fetchError;
     }
   } catch (error) {
-    console.error(`❌ Proxy error for ${endpoint}:`, error);
+    const duration = Date.now() - startTime;
+    console.error(`[Proxy] Error after ${duration}ms for ${endpoint}:`, error);
     
-    // Determine error type and provide helpful message
+    // Determine error details
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorCause = (error as any)?.cause;
+    const isConnectionRefused = errorCause?.code === 'ECONNREFUSED' || 
+                               errorCause?.code === 'ENOTFOUND' ||
+                               errorMessage.includes('fetch failed');
     
-    // Generic error response for unexpected errors
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to process request',
-        details: errorMessage,
+    let category: 'network' | 'timeout' | 'config' | 'unknown' = 'unknown';
+    let likelyCause = 'Unknown configuration or network issue';
+    let solution = 'Check backend configuration and logs';
+    
+    if (isConnectionRefused) {
+      category = 'network';
+      likelyCause = !IS_CONFIGURED 
+        ? 'Backend URL not configured for Cloud Run deployment'
+        : 'Backend service is not running or not reachable';
+      solution = !IS_CONFIGURED
+        ? 'Set NEXT_PUBLIC_API_URL environment variable to your backend Cloud Run URL'
+        : 'Verify backend service is running and URL is correct';
+    } else if (!isValidUrl(BACKEND_URL)) {
+      category = 'config';
+      likelyCause = 'Invalid backend URL configuration';
+      solution = 'Check your environment variables';
+    }
+    
+    // Build enhanced error response
+    const errorResponse = {
+      success: false,
+      error: isConnectionRefused ? 'Cannot connect to backend service' : 'Failed to process request',
+      details: errorMessage,
+      troubleshooting: {
+        likely_cause: likelyCause,
+        solution: solution,
+        documentation: 'See DEPLOYMENT_GUIDE.md and frontend/BACKEND_CONFIG.md for configuration instructions'
       },
-      { status: 500 }
-    );
+      backend_url: backendUrl,
+      is_configured: IS_CONFIGURED,
+      error_category: category
+    };
+    
+    return NextResponse.json(errorResponse, { status: category === 'network' ? 503 : 500 });
   }
 }
