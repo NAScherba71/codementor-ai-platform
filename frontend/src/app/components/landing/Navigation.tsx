@@ -16,6 +16,7 @@ export function Navigation() {
     { name: 'Demo', href: '#demo' },
     { name: 'Pricing', href: '#pricing' },
     { name: 'About', href: '#about' },
+    { name: 'Developer', href: '/developers/nascherba71' },
   ];
 
   return (
