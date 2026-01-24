@@ -5,6 +5,17 @@ import { motion } from 'framer-motion'
 import { Check, Copy, Play } from 'lucide-react'
 import { useState } from 'react'
 
+interface ErrorDetails {
+  details?: string;
+  troubleshooting?: {
+    likely_cause?: string;
+    solution?: string;
+    documentation?: string;
+  };
+  backend_url?: string;
+  is_configured?: boolean;
+}
+
 export default function CodeEditor() {
   const [code, setCode] = useState(`def fibonacci(n):
     """Calculate fibonacci number at position n"""
@@ -19,18 +30,6 @@ print(f"Result: {result}")
 
   const [language, setLanguage] = useState('python')
   const [copied, setCopied] = useState(false)
-  
-  interface ErrorDetails {
-    details?: string;
-    troubleshooting?: {
-      likely_cause?: string;
-      solution?: string;
-      documentation?: string;
-    };
-    backend_url?: string;
-    is_configured?: boolean;
-  }
-  
   const [error, setError] = useState<string | null>(null)
   const [errorDetails, setErrorDetails] = useState<ErrorDetails | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)

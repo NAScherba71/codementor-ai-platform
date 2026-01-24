@@ -4,6 +4,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+// Error category types
+type ErrorCategory = 'network' | 'timeout' | 'config' | 'unknown';
+
 // Configuration validation and logging
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 
                     process.env.BACKEND_API_URL || 
@@ -14,8 +17,8 @@ const IS_CONFIGURED = !!(process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_
 const REQUEST_TIMEOUT_MS = 30000; // 30 seconds
 
 // Validate configuration on module load
-// Note: In serverless environments (Cloud Run), this executes once per cold start
-// which is acceptable for logging configuration status
+// Note: In serverless environments (Cloud Run), this module loads once per cold start
+// These warnings will only appear in server logs during container initialization
 if (!IS_CONFIGURED && IS_PRODUCTION) {
   console.warn('⚠️  WARNING: Backend URL not configured for production deployment!');
   console.warn('   Using localhost fallback which will fail in Cloud Run.');
@@ -23,7 +26,7 @@ if (!IS_CONFIGURED && IS_PRODUCTION) {
 }
 
 // Log backend URL on startup
-// This helps with debugging and verifying configuration
+// This helps with debugging and verifying configuration in production
 console.log(`✓ Backend URL configured: ${BACKEND_URL}`);
 console.log(`  Environment: ${process.env.NODE_ENV || 'development'}`);
 console.log(`  Explicitly configured: ${IS_CONFIGURED ? 'Yes' : 'No (using fallback)'}`);
@@ -168,17 +171,17 @@ export async function proxyToBackend(
     // Determine error details
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorCause = (error as any)?.cause;
-    const isConnectionRefused = errorCause?.code === 'ECONNREFUSED' || 
+    const isConnectionRefused = errorCause?.code === 'ECONNREFUSED' ||
                                errorCause?.code === 'ENOTFOUND' ||
                                errorMessage.includes('fetch failed');
-    
-    let category: 'network' | 'timeout' | 'config' | 'unknown' = 'unknown';
+
+    let category: ErrorCategory = 'unknown';
     let likelyCause = 'Unknown configuration or network issue';
     let solution = 'Check backend configuration and logs';
-    
+
     if (isConnectionRefused) {
       category = 'network';
-      likelyCause = !IS_CONFIGURED 
+      likelyCause = !IS_CONFIGURED
         ? 'Backend URL not configured for Cloud Run deployment'
         : 'Backend service is not running or not reachable';
       solution = !IS_CONFIGURED
