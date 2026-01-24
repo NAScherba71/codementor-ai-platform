@@ -8,18 +8,22 @@ import { getBackendUrl, isBackendConfigured } from '../ai-console/config';
 export async function GET() {
   const backendUrl = getBackendUrl();
   const isConfigured = isBackendConfigured();
+  const isProduction = process.env.NODE_ENV === 'production';
   
   const healthStatus = {
     status: 'unknown',
-    frontend: 'healthy',
-    backend: 'unknown',
-    backend_url: backendUrl,
-    is_configured: isConfigured,
     timestamp: new Date().toISOString(),
-    checks: {
-      environment: process.env.NODE_ENV || 'development',
-      config_valid: isConfigured,
-      backend_reachable: false,
+    environment: process.env.NODE_ENV || 'development',
+    frontend: {
+      status: 'healthy',
+      version: '1.0.0'
+    },
+    backend: {
+      status: 'unknown',
+      configured: isConfigured,
+      url: isConfigured ? (isProduction ? '[REDACTED]' : backendUrl) : 'not configured',
+      reachable: false,
+      error: undefined as string | undefined
     }
   };
 
@@ -35,8 +39,8 @@ export async function GET() {
     
     clearTimeout(timeoutId);
     
-    healthStatus.checks.backend_reachable = response.ok;
-    healthStatus.backend = response.ok ? 'healthy' : 'unhealthy';
+    healthStatus.backend.reachable = response.ok;
+    healthStatus.backend.status = response.ok ? 'healthy' : 'unhealthy';
     
     // Determine overall status
     if (response.ok && isConfigured) {
@@ -44,26 +48,27 @@ export async function GET() {
     } else if (!isConfigured) {
       healthStatus.status = 'warning';
     } else {
-      healthStatus.status = 'unhealthy';
+      healthStatus.status = 'degraded';
     }
   } catch (error) {
     console.error('[Health Check] Backend unreachable:', error);
-    healthStatus.backend = 'unreachable';
-    healthStatus.checks.backend_reachable = false;
+    healthStatus.backend.status = 'unreachable';
+    healthStatus.backend.reachable = false;
+    
+    if (!isProduction) {
+      healthStatus.backend.error = error instanceof Error ? error.message : 'Unknown error';
+    }
     
     // Determine status based on configuration
     if (isConfigured) {
-      healthStatus.status = 'unhealthy';
+      healthStatus.status = 'degraded';
     } else {
       healthStatus.status = 'warning';
     }
   }
 
   // Determine HTTP status code
-  let statusCode = 200;
-  if (healthStatus.status === 'unhealthy') {
-    statusCode = 503;
-  }
+  const statusCode = healthStatus.status === 'healthy' ? 200 : 503;
 
   return NextResponse.json(healthStatus, { status: statusCode });
 }

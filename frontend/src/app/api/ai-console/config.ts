@@ -40,8 +40,16 @@ function isValidUrl(urlString: string): boolean {
 }
 
 /**
+ * Check if we're running in production environment
+ */
+function isProduction(): boolean {
+  return process.env.NODE_ENV === 'production';
+}
+
+/**
  * Get the backend API URL from environment variables
  * Priority: NEXT_PUBLIC_API_URL > BACKEND_API_URL > localhost fallback
+ * @throws Error in production if no backend URL is configured
  */
 export function getBackendUrl(): string {
   return BACKEND_URL;
@@ -52,49 +60,6 @@ export function getBackendUrl(): string {
  */
 export function isBackendConfigured(): boolean {
   return IS_CONFIGURED;
-}
-
-/**
- * Categorize error type for better user messaging
- * @param error - The error object to categorize
- * @returns Object containing error category, user-friendly message, and troubleshooting advice
- */
-function categorizeError(error: Error): {
-  category: 'network' | 'timeout' | 'config' | 'unknown';
-  userMessage: string;
-  troubleshooting: string;
-} {
-  const message = error.message.toLowerCase();
-  
-  if (message.includes('fetch failed') || message.includes('econnrefused') || message.includes('network')) {
-    return {
-      category: 'network',
-      userMessage: 'Cannot connect to backend service',
-      troubleshooting: 'The backend service is not reachable. Check if the backend URL is correct and the service is running.'
-    };
-  }
-  
-  if (message.includes('timeout') || message.includes('aborted')) {
-    return {
-      category: 'timeout',
-      userMessage: 'Backend service timeout',
-      troubleshooting: 'The backend took too long to respond. The service may be slow or experiencing issues.'
-    };
-  }
-  
-  if (!isValidUrl(BACKEND_URL)) {
-    return {
-      category: 'config',
-      userMessage: 'Invalid backend URL configuration',
-      troubleshooting: 'The backend URL is not properly formatted. Check your environment variables.'
-    };
-  }
-  
-  return {
-    category: 'unknown',
-    userMessage: 'Unexpected error connecting to backend',
-    troubleshooting: 'An unexpected error occurred. Check the browser console for more details.'
-  };
 }
 
 /**
@@ -171,41 +136,75 @@ export async function proxyToBackend(
       }
     } catch (fetchError) {
       clearTimeout(timeoutId);
+      
+      // Handle timeout errors
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        console.error(`[Proxy] Request timeout for ${targetUrl}`);
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Backend service timeout',
+            details: `The backend service did not respond within ${REQUEST_TIMEOUT_MS / 1000} seconds`,
+            troubleshooting: {
+              likely_cause: 'Backend service is slow or overloaded',
+              solution: 'Check backend service health and performance',
+              documentation: 'See DEPLOYMENT_GUIDE.md and frontend/BACKEND_CONFIG.md'
+            },
+            backend_url: backendUrl,
+            is_configured: IS_CONFIGURED,
+            error_category: 'timeout'
+          },
+          { status: 504 }
+        );
+      }
+      
+      // Re-throw for outer catch
       throw fetchError;
     }
   } catch (error) {
     const duration = Date.now() - startTime;
     console.error(`[Proxy] Error after ${duration}ms for ${endpoint}:`, error);
     
-    const errorDetails = categorizeError(error as Error);
+    // Determine error details
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorCause = (error as any)?.cause;
+    const isConnectionRefused = errorCause?.code === 'ECONNREFUSED' || 
+                               errorCause?.code === 'ENOTFOUND' ||
+                               errorMessage.includes('fetch failed');
+    
+    let category: 'network' | 'timeout' | 'config' | 'unknown' = 'unknown';
+    let likelyCause = 'Unknown configuration or network issue';
+    let solution = 'Check backend configuration and logs';
+    
+    if (isConnectionRefused) {
+      category = 'network';
+      likelyCause = !IS_CONFIGURED 
+        ? 'Backend URL not configured for Cloud Run deployment'
+        : 'Backend service is not running or not reachable';
+      solution = !IS_CONFIGURED
+        ? 'Set NEXT_PUBLIC_API_URL environment variable to your backend Cloud Run URL'
+        : 'Verify backend service is running and URL is correct';
+    } else if (!isValidUrl(BACKEND_URL)) {
+      category = 'config';
+      likelyCause = 'Invalid backend URL configuration';
+      solution = 'Check your environment variables';
+    }
     
     // Build enhanced error response
     const errorResponse = {
       success: false,
-      error: errorDetails.userMessage,
-      details: error instanceof Error ? error.message : 'Unknown error',
+      error: isConnectionRefused ? 'Cannot connect to backend service' : 'Failed to process request',
+      details: errorMessage,
       troubleshooting: {
-        likely_cause: !IS_CONFIGURED 
-          ? 'Backend URL not configured for Cloud Run deployment'
-          : errorDetails.category === 'network'
-          ? 'Backend service is not running or not reachable'
-          : errorDetails.category === 'timeout'
-          ? 'Backend service is slow or overloaded'
-          : 'Unknown configuration or network issue',
-        solution: !IS_CONFIGURED
-          ? 'Set NEXT_PUBLIC_API_URL environment variable to your backend Cloud Run URL'
-          : errorDetails.category === 'network'
-          ? 'Verify backend service is running and URL is correct'
-          : errorDetails.category === 'timeout'
-          ? 'Check backend service health and performance'
-          : 'Check backend configuration and logs',
+        likely_cause: likelyCause,
+        solution: solution,
         documentation: 'See DEPLOYMENT_GUIDE.md and frontend/BACKEND_CONFIG.md for configuration instructions'
       },
       backend_url: backendUrl,
       is_configured: IS_CONFIGURED,
-      error_category: errorDetails.category
+      error_category: category
     };
     
-    return NextResponse.json(errorResponse, { status: 500 });
+    return NextResponse.json(errorResponse, { status: category === 'network' ? 503 : 500 });
   }
 }
