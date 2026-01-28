@@ -1,79 +1,74 @@
 import { NextResponse } from 'next/server';
+import { getBackendUrl, isBackendConfigured } from '../ai-console/config';
 
 /**
- * Health check endpoint
- * GET /api/health
- * Checks frontend health and optionally backend connectivity
+ * API Route: GET /api/health
+ * Health check endpoint that verifies backend connectivity
  */
 export async function GET() {
-  const backendUrl = process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_API_URL;
+  const backendUrl = getBackendUrl();
+  const isConfigured = isBackendConfigured();
   const isProduction = process.env.NODE_ENV === 'production';
   
-  const healthStatus: {
-    status: string;
-    timestamp: string;
-    environment: string;
-    frontend: {
-      status: string;
-      version: string;
-    };
-    backend: {
-      configured: boolean;
-      url: string;
-      status: string;
-      error?: string;
-    };
-  } = {
-    status: 'healthy',
+  const healthStatus = {
+    status: 'unknown',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     frontend: {
-      status: 'ok',
+      status: 'healthy',
       version: '1.0.0'
     },
     backend: {
-      configured: !!backendUrl,
-      url: backendUrl ? (isProduction ? '[REDACTED]' : backendUrl) : 'not configured',
-      status: 'unknown'
+      status: 'unknown',
+      configured: isConfigured,
+      url: isConfigured ? (isProduction ? '[REDACTED]' : backendUrl) : 'not configured',
+      reachable: false,
+      error: undefined as string | undefined
     }
   };
 
-  // Try to check backend connectivity if configured
-  if (backendUrl) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-      
-      const response = await fetch(`${backendUrl}/health`, {
-        method: 'GET',
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      
-      healthStatus.backend.status = response.ok ? 'connected' : 'error';
-      
-      if (!response.ok) {
-        healthStatus.status = 'degraded';
-      }
-    } catch (error) {
-      healthStatus.backend.status = 'unreachable';
-      healthStatus.status = 'degraded';
-      
-      if (!isProduction) {
-        healthStatus.backend.error = error instanceof Error ? error.message : 'Unknown error';
-      }
-    }
-  } else {
-    if (isProduction) {
-      healthStatus.status = 'degraded';
-      healthStatus.backend.status = 'not configured';
+  // Try to reach backend health endpoint
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout for health check
+    
+    const response = await fetch(`${backendUrl}/health`, {
+      method: 'GET',
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    
+    healthStatus.backend.reachable = response.ok;
+    healthStatus.backend.status = response.ok ? 'healthy' : 'unhealthy';
+    
+    // Determine overall status
+    if (response.ok && isConfigured) {
+      healthStatus.status = 'healthy';
+    } else if (!isConfigured) {
+      healthStatus.status = 'warning';
     } else {
-      healthStatus.backend.status = 'using localhost fallback';
+      healthStatus.status = 'degraded';
+    }
+  } catch (error) {
+    console.error('[Health Check] Backend unreachable:', error);
+    healthStatus.backend.status = 'unreachable';
+    healthStatus.backend.reachable = false;
+    
+    if (!isProduction) {
+      healthStatus.backend.error = error instanceof Error ? error.message : 'Unknown error';
+    }
+    
+    // Determine status based on configuration
+    if (isConfigured) {
+      healthStatus.status = 'degraded';
+    } else {
+      healthStatus.status = 'warning';
     }
   }
 
+  // Determine HTTP status code
   const statusCode = healthStatus.status === 'healthy' ? 200 : 503;
-  
+
   return NextResponse.json(healthStatus, { status: statusCode });
 }

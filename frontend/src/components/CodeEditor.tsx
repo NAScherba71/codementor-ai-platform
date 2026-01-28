@@ -5,6 +5,17 @@ import { motion } from 'framer-motion'
 import { Check, Copy, Play } from 'lucide-react'
 import { useState } from 'react'
 
+interface ErrorDetails {
+  details?: string;
+  troubleshooting?: {
+    likely_cause?: string;
+    solution?: string;
+    documentation?: string;
+  };
+  backend_url?: string;
+  is_configured?: boolean;
+}
+
 export default function CodeEditor() {
   const [code, setCode] = useState(`def fibonacci(n):
     """Calculate fibonacci number at position n"""
@@ -19,8 +30,9 @@ print(f"Result: {result}")
 
   const [language, setLanguage] = useState('python')
   const [copied, setCopied] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [errorDetails, setErrorDetails] = useState<ErrorDetails | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const handleEditorChange = (value: string | undefined) => {
     if (value) setCode(value)
@@ -33,8 +45,9 @@ print(f"Result: {result}")
   }
 
   const handleRun = async () => {
-    setIsAnalyzing(true);
-    setErrorMessage(null);
+    setError(null)
+    setErrorDetails(null)
+    setIsAnalyzing(true)
     
     try {
       // Use environment variable or fallback to relative path for local dev
@@ -59,27 +72,17 @@ print(f"Result: {result}")
         try {
           errorData = await response.json();
         } catch {
-          errorData = { error: 'Unknown error', details: await response.text() };
+          errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
         }
         
         console.error('API error:', response.status, errorData);
         
-        // Show user-friendly error message based on response
-        if (response.status === 503) {
-          setErrorMessage(
-            '⚠️ Backend service is not available. ' +
-            (errorData.troubleshooting ? 
-              'Please check your deployment configuration.' : 
-              'Please try again later.')
-          );
-        } else if (response.status === 504) {
-          setErrorMessage(
-            '⏱️ Request timed out. The backend service is taking too long to respond. Please try again.'
-          );
+        // Display detailed error information
+        if (errorData.troubleshooting) {
+          setError(errorData.error || 'Analysis failed');
+          setErrorDetails(errorData);
         } else {
-          setErrorMessage(
-            `❌ Failed to analyze code (${response.status}): ${errorData.error || response.statusText}`
-          );
+          setError(`Failed to analyze code: ${response.status} ${response.statusText}`);
         }
         return;
       }
@@ -89,23 +92,28 @@ print(f"Result: {result}")
         // Open playground with analysis results
         window.open('/playground?code=' + encodeURIComponent(code), '_blank')
       } else {
-        console.error('Analysis failed:', data.error);
-        setErrorMessage(`❌ Analysis failed: ${data.error || 'Unknown error'}`);
+        console.error('Analysis failed:', data);
+        
+        // Display detailed error if available
+        if (data.troubleshooting) {
+          setError(data.error || 'Analysis failed');
+          setErrorDetails(data);
+        } else {
+          setError(data.error || 'Unknown error occurred');
+        }
       }
     } catch (error) {
       console.error('Error analyzing code:', error)
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      const errorName = error instanceof Error ? error.name : '';
-      
-      if (errorName === 'TypeError' || errorMsg.includes('Failed to fetch')) {
-        setErrorMessage(
-          '🔌 Cannot connect to the backend service. Please check your internet connection and try again.'
-        );
-      } else {
-        setErrorMessage(`❌ Error: ${errorMsg}`);
-      }
+      setError('Error connecting to backend');
+      setErrorDetails({
+        details: error instanceof Error ? error.message : 'Unknown error',
+        troubleshooting: {
+          likely_cause: 'Network connectivity issue or backend service is down',
+          solution: 'Check your internet connection and verify the backend service is running'
+        }
+      });
     } finally {
-      setIsAnalyzing(false);
+      setIsAnalyzing(false)
     }
   }
 
@@ -184,15 +192,66 @@ print(f"Result: {result}")
         />
       </div>
 
-      {/* Error message */}
-      {errorMessage && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
-          <div className="font-semibold mb-1">Error</div>
-          <div>{errorMessage}</div>
-          <div className="mt-2 text-xs text-red-600">
-            💡 Tip: If you're deploying to production, make sure the <code className="bg-red-100 px-1 py-0.5 rounded">NEXT_PUBLIC_API_URL</code> environment variable is set correctly.
+      {/* Error Display */}
+      {error && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3"
+        >
+          <div className="flex items-start gap-2">
+            <div className="text-red-600 font-semibold text-sm">❌ {error}</div>
+            <button
+              onClick={() => { setError(null); setErrorDetails(null); }}
+              className="ml-auto text-red-400 hover:text-red-600 text-xs"
+            >
+              ✕
+            </button>
           </div>
-        </div>
+          
+          {errorDetails && (
+            <div className="space-y-2 text-sm">
+              {errorDetails.details && (
+                <div className="text-red-700">
+                  <span className="font-medium">Details:</span> {errorDetails.details}
+                </div>
+              )}
+              
+              {errorDetails.troubleshooting && (
+                <div className="bg-red-100 rounded p-3 space-y-2">
+                  <div className="font-semibold text-red-900">🔧 Troubleshooting</div>
+                  
+                  {errorDetails.troubleshooting.likely_cause && (
+                    <div className="text-red-800">
+                      <span className="font-medium">Likely cause:</span> {errorDetails.troubleshooting.likely_cause}
+                    </div>
+                  )}
+                  
+                  {errorDetails.troubleshooting.solution && (
+                    <div className="text-red-800">
+                      <span className="font-medium">Solution:</span> {errorDetails.troubleshooting.solution}
+                    </div>
+                  )}
+                  
+                  {errorDetails.troubleshooting.documentation && (
+                    <div className="text-red-700 text-xs">
+                      📖 {errorDetails.troubleshooting.documentation}
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {errorDetails.backend_url && (
+                <div className="text-red-600 text-xs font-mono">
+                  Backend URL: {errorDetails.backend_url}
+                  {errorDetails.is_configured === false && (
+                    <span className="ml-2 text-red-500">(not configured - using fallback)</span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </motion.div>
       )}
 
       {/* Info message */}
